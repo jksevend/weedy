@@ -8,14 +8,18 @@
     },
     "environments": {
       "choose": "Choose environment",
+      "create": "Create environment action",
       "description_hint": "Enter a description of the environment action",
+      "edit": "Edit environment action",
       "none": "No environment actions created yet",
       "none_for_this": "No actions for this environment"
     },
     "none": "No actions",
     "plants": {
       "choose": "Choose plant",
+      "create": "Create plant action",
       "description_hint": "Enter a description of the plant action",
+      "edit": "Edit plant action",
       "none": "No plant actions created yet",
       "none_for_this": "No actions for this plant"
     }
@@ -28,6 +32,9 @@
     "cancel": "Cancel",
     "close": "Close",
     "coco": "Coco",
+    "confirm": "Confirm",
+    "confirm_discard_title": "Discard changes?",
+    "confirm_discard_description": "Are you sure you want to discard the changes?",
     "curing": "Curing",
     "curing_message": "{name} is curing",
     "death": "Death",

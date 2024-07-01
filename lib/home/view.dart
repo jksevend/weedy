@@ -158,6 +158,7 @@ class _HomeViewState extends State<HomeView> {
                                               action: action,
                                               actionsProvider: widget.actionsProvider,
                                               fertilizerProvider: widget.fertilizerProvider,
+                                              plantsProvider: widget.plantsProvider,
                                             ),
                                           )
                                           .toList(),
@@ -209,6 +210,7 @@ class _HomeViewState extends State<HomeView> {
                                               environment: environments[action.environmentId]!,
                                               action: action,
                                               actionsProvider: widget.actionsProvider,
+                                              environmentsProvider: widget.environmentsProvider,
                                             ),
                                           )
                                           .toList(),

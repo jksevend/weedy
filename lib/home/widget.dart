@@ -5,7 +5,9 @@ import 'package:weedy/actions/model.dart' as weedy;
 import 'package:weedy/actions/provider.dart';
 import 'package:weedy/actions/sheet.dart';
 import 'package:weedy/environments/model.dart';
+import 'package:weedy/environments/provider.dart';
 import 'package:weedy/plants/model.dart';
+import 'package:weedy/plants/provider.dart';
 
 /// An item of a list of plant actions
 class PlantActionLogHomeWidget extends StatelessWidget {
@@ -13,6 +15,7 @@ class PlantActionLogHomeWidget extends StatelessWidget {
   final weedy.PlantAction action;
   final ActionsProvider actionsProvider;
   final FertilizerProvider fertilizerProvider;
+  final PlantsProvider plantsProvider;
 
   const PlantActionLogHomeWidget({
     super.key,
@@ -20,6 +23,7 @@ class PlantActionLogHomeWidget extends StatelessWidget {
     required this.action,
     required this.actionsProvider,
     required this.fertilizerProvider,
+    required this.plantsProvider,
   });
 
   @override
@@ -32,7 +36,7 @@ class PlantActionLogHomeWidget extends StatelessWidget {
         subtitle: Text(action.formattedDate),
         onTap: () async {
           await showPlantActionDetailSheet(
-              context, action, plant, actionsProvider, fertilizerProvider);
+              context, action, plant, actionsProvider, fertilizerProvider, plantsProvider);
         },
       ),
     );
@@ -44,12 +48,14 @@ class EnvironmentActionLogHomeWidget extends StatelessWidget {
   final Environment environment;
   final weedy.EnvironmentAction action;
   final ActionsProvider actionsProvider;
+  final EnvironmentsProvider environmentsProvider;
 
   const EnvironmentActionLogHomeWidget({
     super.key,
     required this.environment,
     required this.action,
     required this.actionsProvider,
+    required this.environmentsProvider,
   });
 
   @override
@@ -61,7 +67,13 @@ class EnvironmentActionLogHomeWidget extends StatelessWidget {
         title: Text(environment.name),
         subtitle: Text(action.formattedDate),
         onTap: () async {
-          await showEnvironmentActionDetailSheet(context, action, environment, actionsProvider);
+          await showEnvironmentActionDetailSheet(
+            context,
+            action,
+            environment,
+            actionsProvider,
+            environmentsProvider,
+          );
         },
       ),
     );

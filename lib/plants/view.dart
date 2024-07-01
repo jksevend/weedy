@@ -8,6 +8,7 @@ import 'package:weedy/actions/fertilizer/provider.dart';
 import 'package:weedy/actions/provider.dart';
 import 'package:weedy/actions/view.dart';
 import 'package:weedy/common/date_utils.dart';
+import 'package:weedy/common/dialog.dart';
 import 'package:weedy/environments/model.dart';
 import 'package:weedy/environments/provider.dart';
 import 'package:weedy/plants/model.dart';
@@ -136,18 +137,37 @@ class PlantOverview extends StatelessWidget {
                                   transitionsProvider,
                                   bottomNavigationKey);
                             },
-                            trailing: IconButton(
-                              icon: const Icon(Icons.timeline),
-                              onPressed: () {
-                                debugPrint('Navigate to the plant timeline view for ${plant.name}');
-                                Navigator.of(context).push(MaterialPageRoute(
-                                    builder: (context) => PlantActionOverview(
-                                          plant: plant,
-                                          actionsProvider: actionsProvider,
-                                          fertilizerProvider: fertilizerProvider,
-                                          plantLifecycleTransitionProvider: transitionsProvider,
-                                        )));
-                              },
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.bolt_outlined),
+                                  onPressed: () {
+                                    debugPrint('Navigate to the plant edit view for ${plant.name}');
+                                    Navigator.of(context).push(MaterialPageRoute(
+                                        builder: (context) => CreatePlantActionView(
+                                              plantsProvider: plantsProvider,
+                                              actionsProvider: actionsProvider,
+                                              fertilizerProvider: fertilizerProvider,
+                                            )));
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.timeline),
+                                  onPressed: () {
+                                    debugPrint(
+                                        'Navigate to the plant timeline view for ${plant.name}');
+                                    Navigator.of(context).push(MaterialPageRoute(
+                                        builder: (context) => PlantActionOverview(
+                                              plant: plant,
+                                              plantsProvider: plantsProvider,
+                                              actionsProvider: actionsProvider,
+                                              fertilizerProvider: fertilizerProvider,
+                                              plantLifecycleTransitionProvider: transitionsProvider,
+                                            )));
+                                  },
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -172,6 +192,7 @@ class PlantForm extends StatefulWidget {
   final PlantsProvider plantsProvider;
   final EnvironmentsProvider environmentsProvider;
   final PlantLifecycleTransitionProvider transitionsProvider;
+  final Function(bool, List<File>)? changeCallback;
 
   const PlantForm({
     super.key,
@@ -181,6 +202,7 @@ class PlantForm extends StatefulWidget {
     required this.plantsProvider,
     required this.environmentsProvider,
     required this.transitionsProvider,
+    required this.changeCallback,
   });
 
   @override
@@ -195,9 +217,21 @@ class _PlantFormState extends State<PlantForm> {
   late Medium _selectedMedium;
   Environment? _currentEnvironment;
 
+  late final Plant _initialPlant;
+
   @override
   void initState() {
     super.initState();
+
+    if (widget.plant != null) {
+      _initialPlant = widget.plant!;
+      // Add postframe callback to set the initial values
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        _currentEnvironment =
+            (await widget.environmentsProvider.environments.first)[_initialPlant.environmentId];
+      });
+    }
+
     _nameController = TextEditingController(text: widget.plant?.name);
     _descriptionController = TextEditingController(text: widget.plant?.description);
     _selectedLifeCycleState = _selectedLifeCycleStateFromPlant(widget.plant);
@@ -217,20 +251,25 @@ class _PlantFormState extends State<PlantForm> {
       appBar: AppBar(
         title: Text(widget.title),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: SingleChildScrollView(
-          child: Form(
-            key: widget.formKey,
-            child: Column(
-              children: [
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Column(
-                      children: [
-                        const Text('Plant details'),
-                        TextFormField(
+      body: bodyWidget(),
+    );
+  }
+
+  Widget bodyWidget() {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: SingleChildScrollView(
+        child: Form(
+          key: widget.formKey,
+          child: Column(
+            children: [
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    children: [
+                      const Text('Plant details'),
+                      TextFormField(
                           controller: _nameController,
                           decoration: InputDecoration(
                             labelText: tr('common.name'),
@@ -242,22 +281,43 @@ class _PlantFormState extends State<PlantForm> {
                             }
                             return null;
                           },
-                        ),
-                        const SizedBox(height: 16.0),
-                        TextFormField(
-                          controller: _descriptionController,
-                          maxLines: null,
-                          minLines: 5,
-                          decoration: InputDecoration(
+                          onChanged: (value) {
+                            if (widget.changeCallback != null) {
+                              if (widget.plant != null) {
+                                if (_initialPlant.name != value) {
+                                  widget.changeCallback!(true, []);
+                                } else {
+                                  widget.changeCallback!(false, []);
+                                }
+                              }
+                            }
+                          }),
+                      const SizedBox(height: 16.0),
+                      TextFormField(
+                        controller: _descriptionController,
+                        maxLines: null,
+                        minLines: 5,
+                        decoration: InputDecoration(
                             labelText: tr('common.description'),
                             hintText: tr('plants.hint_description'),
                           ),
-                        ),
-                      ],
-                    ),
+                        onChanged: (value) {
+                          if (widget.changeCallback != null) {
+                            if (widget.plant != null) {
+                              if (_descriptionController.text != _initialPlant.description) {
+                                widget.changeCallback!(true, []);
+                              } else {
+                                widget.changeCallback!(false, []);
+                              }
+                            }
+                          }
+                        },
+                      ),
+                    ],
                   ),
                 ),
-
+              ),
+              if (widget.plant == null)
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),
@@ -305,14 +365,14 @@ class _PlantFormState extends State<PlantForm> {
                     ),
                   ),
                 ),
-                if (widget.plant == null)
-                  SizedBox(
-                    width: double.infinity,
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Column(
-                          children: [
+              if (widget.plant == null)
+                SizedBox(
+                  width: double.infinity,
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        children: [
                           Text(tr('plants.current_lifecycle_state')),
                           const SizedBox(height: 8.0),
                           ToggleButtons(
@@ -334,56 +394,85 @@ class _PlantFormState extends State<PlantForm> {
                     ),
                   ),
                 ),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: DropdownButton<Medium>(
-                      icon: const Icon(Icons.arrow_downward_sharp),
-                      isExpanded: true,
-                      items: Medium.values
-                          .map(
-                            (medium) => DropdownMenuItem<Medium>(
-                              value: medium,
-                              child: Text(medium.name),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (Medium? value) => _updateCurrentMedium(value),
-                      value: _selectedMedium,
-                    ),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: DropdownButton<Medium>(
+                    icon: const Icon(Icons.arrow_downward_sharp),
+                    isExpanded: true,
+                    items: Medium.values
+                        .map(
+                          (medium) => DropdownMenuItem<Medium>(
+                            value: medium,
+                            child: Text(medium.name),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (Medium? value) => _updateCurrentMedium(value),
+                    value: _selectedMedium,
                   ),
                 ),
-                SizedBox(
-                  width: double.infinity,
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Column(
-                        children: [
-                          Text(tr('common.banner_image')),
-                          PictureForm(
+              ),
+              SizedBox(
+                width: double.infinity,
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Column(
+                      children: [
+                        Text(tr('common.banner_image')),
+                        PictureForm(
                             key: _pictureFormKey,
+                            value: widget.plant,
                             allowMultiple: false,
                             images: widget.plant == null
                                 ? []
                                 : widget.plant!.bannerImagePath.isEmpty
                                     ? []
                                     : [File(widget.plant!.bannerImagePath)],
-                          ),
-                        ],
-                      ),
+                            changeCallback: (changed, images) {
+                              if (widget.changeCallback != null) {
+                                if (images.isNotEmpty) {
+                                  // Creation case - image was added but now user decided to leave the page
+                                  if (widget.plant == null && images.isNotEmpty) {
+                                    widget.changeCallback!(true, images);
+                                    return;
+                                  }
+
+                                  // First case - environment was created without image, now editing with image.
+                                  if (images.first.path != _initialPlant.bannerImagePath) {
+                                    widget.changeCallback!(true, images);
+                                  } else {
+                                    widget.changeCallback!(false, []);
+                                  }
+                                } else {
+                                  if (widget.plant == null) {
+                                    widget.changeCallback!(false, []);
+                                    return;
+                                  }
+
+                                  // Second case - environment was created with image, now editing without image.
+                                  if (_initialPlant.bannerImagePath.isNotEmpty) {
+                                    widget.changeCallback!(true, images);
+                                  } else {
+                                    widget.changeCallback!(false, []);
+                                  }
+                                }
+                              }
+                            }),
+                      ],
                     ),
                   ),
                 ),
-                // Submit button
-                const SizedBox(height: 16.0),
-                OutlinedButton.icon(
-                  onPressed: () async => await _onPlantSaved(),
-                  label: Text(tr('common.save')),
-                  icon: const Icon(Icons.arrow_right),
-                ),
-              ],
-            ),
+              ),
+              // Submit button
+              const SizedBox(height: 16.0),
+              OutlinedButton.icon(
+                onPressed: () async => await _onPlantSaved(),
+                label: Text(tr('common.save')),
+                icon: const Icon(Icons.arrow_right),
+              ),
+            ],
           ),
         ),
       ),
@@ -394,6 +483,15 @@ class _PlantFormState extends State<PlantForm> {
   void _updateCurrentEnvironment(Environment? environment) {
     setState(() {
       _currentEnvironment = environment;
+      if (widget.changeCallback != null) {
+        if (widget.plant != null) {
+          if (_initialPlant.environmentId != environment!.id) {
+            widget.changeCallback!(true, []);
+          } else {
+            widget.changeCallback!(false, []);
+          }
+        }
+      }
     });
   }
 
@@ -401,6 +499,15 @@ class _PlantFormState extends State<PlantForm> {
   void _updateCurrentMedium(Medium? medium) {
     setState(() {
       _selectedMedium = medium!;
+      if (widget.changeCallback != null) {
+        if (widget.plant != null) {
+          if (_initialPlant.medium != medium) {
+            widget.changeCallback!(true, []);
+          } else {
+            widget.changeCallback!(false, []);
+          }
+        }
+      }
     });
   }
 
@@ -524,41 +631,74 @@ class _PlantFormState extends State<PlantForm> {
 }
 
 /// A view to create a plant.
-class CreatePlantView extends StatelessWidget {
+class CreatePlantView extends StatefulWidget {
   final PlantsProvider plantsProvider;
   final EnvironmentsProvider environmentsProvider;
   final PlantLifecycleTransitionProvider transitionsProvider;
 
-  CreatePlantView({
+  const CreatePlantView({
     super.key,
     required this.plantsProvider,
     required this.environmentsProvider,
     required this.transitionsProvider,
   });
 
+  @override
+  State<CreatePlantView> createState() => _CreatePlantViewState();
+}
+
+class _CreatePlantViewState extends State<CreatePlantView> {
   final _formKey = GlobalKey<FormState>();
+
+  bool _hasChanged = false;
+  List<File> _images = [];
 
   @override
   Widget build(BuildContext context) {
-    return PlantForm(
-      formKey: _formKey,
-      title: tr('plants.create'),
-      plant: null,
-      plantsProvider: plantsProvider,
-      environmentsProvider: environmentsProvider,
-      transitionsProvider: transitionsProvider,
+    return PopScope(
+      canPop: !_hasChanged,
+      onPopInvoked: (didPop) async {
+        if (didPop) {
+          return;
+        }
+        if (_hasChanged) {
+          final confirmed = await discardChangesDialog(context);
+          if (confirmed && context.mounted) {
+            // Delete all images that were added.
+            for (var image in _images) {
+              if (image.path.contains('app_flutter')) {
+                image.delete();
+              }
+            }
+            Navigator.of(context).pop();
+          }
+        }
+      },
+      child: PlantForm(
+          formKey: _formKey,
+          title: tr('plants.create'),
+          plant: null,
+          plantsProvider: widget.plantsProvider,
+          environmentsProvider: widget.environmentsProvider,
+          transitionsProvider: widget.transitionsProvider,
+          changeCallback: (bool hasChanged, List<File> objects) {
+            setState(() {
+              _hasChanged = hasChanged;
+              _images = objects;
+            });
+          }),
     );
   }
 }
 
 /// A view to edit a plant.
-class EditPlantView extends StatelessWidget {
+class EditPlantView extends StatefulWidget {
   final Plant plant;
   final PlantsProvider plantsProvider;
   final EnvironmentsProvider environmentsProvider;
   final PlantLifecycleTransitionProvider transitionsProvider;
 
-  EditPlantView({
+  const EditPlantView({
     super.key,
     required this.plant,
     required this.plantsProvider,
@@ -566,17 +706,51 @@ class EditPlantView extends StatelessWidget {
     required this.transitionsProvider,
   });
 
+  @override
+  State<EditPlantView> createState() => _EditPlantViewState();
+}
+
+class _EditPlantViewState extends State<EditPlantView> {
   final _formKey = GlobalKey<FormState>();
+
+  bool _hasChanged = false;
+  List<File> _images = [];
 
   @override
   Widget build(BuildContext context) {
-    return PlantForm(
-      formKey: _formKey,
-      title: tr('plants.edit', namedArgs: {'name': plant.name}),
-      plant: plant,
-      plantsProvider: plantsProvider,
-      environmentsProvider: environmentsProvider,
-      transitionsProvider: transitionsProvider,
+    return PopScope(
+      canPop: !_hasChanged,
+      onPopInvoked: (didPop) async {
+        if (didPop) {
+          return;
+        }
+        if (_hasChanged) {
+          final confirmed = await discardChangesDialog(context);
+          if (confirmed && context.mounted) {
+            // Delete all images that were added.
+            for (var image in _images) {
+              if (image.path.contains('app_flutter')) {
+                image.delete();
+              }
+            }
+            Navigator.of(context).pop();
+          }
+        }
+      },
+      child: PlantForm(
+        formKey: _formKey,
+        title: tr('plants.edit', namedArgs: {'name': widget.plant.name}),
+        plant: widget.plant,
+        plantsProvider: widget.plantsProvider,
+        environmentsProvider: widget.environmentsProvider,
+        transitionsProvider: widget.transitionsProvider,
+        changeCallback: (bool hasChanged, List<File> objects) {
+          setState(() {
+            _hasChanged = hasChanged;
+            _images = objects;
+          });
+        },
+      ),
     );
   }
 }

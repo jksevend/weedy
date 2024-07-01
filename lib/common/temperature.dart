@@ -35,11 +35,11 @@ extension TemperatureUnitExtension on TemperatureUnit {
 @JsonSerializable()
 class Temperature {
   final double value;
-  final TemperatureUnit unit;
+  final TemperatureUnit temperatureUnit;
 
   Temperature({
     required this.value,
-    required this.unit,
+    required this.temperatureUnit,
   });
 
   factory Temperature.fromJson(Map<String, dynamic> json) => _$TemperatureFromJson(json);

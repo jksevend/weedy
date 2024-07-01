@@ -8,14 +8,18 @@
     },
     "environments": {
       "choose": "Umgebung wählen",
+      "create": "Umgebungsaktion erstellen",
       "description_hint": "Geben Sie eine Beschreibung der Umgebungsaktion ein",
+      "edit": "Umgebungsaktion bearbeiten",
       "none": "Keine Umgebungsaktionen erstellt",
       "none_for_this": "Keine Aktionen für diese Umgebung"
     },
     "none": "Keine Aktionen",
     "plants": {
       "choose": "Pflanze wählen",
+      "create": "Pflanzenaktion erstellen",
       "description_hint": "Geben Sie eine Beschreibung der Pflanzenaktion ein",
+      "edit": "Pflanzenaktion bearbeiten",
       "none": "Keine Pflanzenaktionen erstellt",
       "none_for_this": "Keine Aktionen für diese Pflanze"
     }
@@ -28,6 +32,9 @@
     "cancel": "Abbrechen",
     "close": "Schließen",
     "coco": "Kokos",
+    "confirm": "Bestätigen",
+    "confirm_discard_title": "Änderungen verwerfen?",
+    "confirm_discard_description": "Sind Sie sicher, dass Sie die Änderungen verwerfen möchten?",
     "curing": "Aushärten",
     "curing_message": "{name} wird ausgehärtet",
     "death": "Tod",
@@ -148,6 +155,8 @@
       "delete_title": "Pflanze löschen"
     },
     "edit": "{name} bearbeiten",
+    "hint_name": "Geben Sie den Namen der Pflanze ein",
+    "hint_description": "Geben Sie eine Beschreibung der Pflanze ein",
     "mandatory": "Bitte wählen Sie eine Pflanze",
     "none": "Keine Pflanzen",
     "transitions": "Lebenszyklusübergang",

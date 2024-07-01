@@ -34,9 +34,9 @@ extension MeasurementUnitExtension on MeasurementUnit {
 @JsonSerializable()
 class MeasurementAmount {
   final double value;
-  final MeasurementUnit unit;
+  final MeasurementUnit measurementUnit;
 
-  MeasurementAmount({required this.value, required this.unit});
+  MeasurementAmount({required this.value, required this.measurementUnit});
 
   factory MeasurementAmount.fromJson(Map<String, dynamic> json) =>
       _$MeasurementAmountFromJson(json);

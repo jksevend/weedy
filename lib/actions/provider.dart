@@ -94,6 +94,16 @@ class ActionsProvider with ChangeNotifier {
     await _setEnvironmentActions(environmentActions, params);
   }
 
+  Future<void> updateEnvironmentAction(weedy.EnvironmentAction environmentAction) async {
+    final params = await getEncryptionParams();
+    final environmentActions = await _environmentActions.first;
+    final index = environmentActions.indexWhere((action) => action.id == environmentAction.id);
+    if (index != -1) {
+      environmentActions[index] = environmentAction;
+      await _setEnvironmentActions(environmentActions, params);
+    }
+  }
+
   /// Deletes a plant action by its [plantId].
   Future<void> removeActionsForPlant(String plantId) async {
     final params = await getEncryptionParams();

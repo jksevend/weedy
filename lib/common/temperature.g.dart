@@ -8,12 +8,12 @@ part of 'temperature.dart';
 
 Temperature _$TemperatureFromJson(Map<String, dynamic> json) => Temperature(
       value: (json['value'] as num).toDouble(),
-      unit: $enumDecode(_$TemperatureUnitEnumMap, json['unit']),
+      temperatureUnit: $enumDecode(_$TemperatureUnitEnumMap, json['temperatureUnit']),
     );
 
 Map<String, dynamic> _$TemperatureToJson(Temperature instance) => <String, dynamic>{
       'value': instance.value,
-      'unit': _$TemperatureUnitEnumMap[instance.unit]!,
+      'temperatureUnit': _$TemperatureUnitEnumMap[instance.temperatureUnit]!,
     };
 
 const _$TemperatureUnitEnumMap = {

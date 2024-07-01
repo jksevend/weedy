@@ -6,6 +6,7 @@ import 'package:rxdart/rxdart.dart';
 import 'package:uuid/uuid.dart';
 import 'package:weedy/actions/provider.dart';
 import 'package:weedy/actions/view.dart';
+import 'package:weedy/common/dialog.dart';
 import 'package:weedy/common/measurement.dart';
 import 'package:weedy/common/validators.dart';
 import 'package:weedy/environments/model.dart';
@@ -117,15 +118,31 @@ class _EnvironmentOverviewState extends State<EnvironmentOverview> {
                                 widget.plantsProvider,
                                 widget.actionsProvider);
                           },
-                          trailing: IconButton(
-                            icon: const Icon(Icons.timeline),
-                            onPressed: () {
-                              Navigator.of(context).push(MaterialPageRoute(
-                                  builder: (context) => EnvironmentActionOverview(
-                                        environment: environment,
-                                        actionsProvider: widget.actionsProvider,
-                                      )));
-                            },
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.bolt),
+                                onPressed: () {
+                                  Navigator.of(context).push(MaterialPageRoute(
+                                      builder: (context) => CreateEnvironmentActionView(
+                                            environmentsProvider: widget.environmentsProvider,
+                                            actionsProvider: widget.actionsProvider,
+                                          )));
+                                },
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.timeline),
+                                onPressed: () {
+                                  Navigator.of(context).push(MaterialPageRoute(
+                                      builder: (context) => EnvironmentActionOverview(
+                                            environment: environment,
+                                            actionsProvider: widget.actionsProvider,
+                                            environmentsProvider: widget.environmentsProvider,
+                                          )));
+                                },
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -147,13 +164,15 @@ class EnvironmentForm extends StatefulWidget {
   final GlobalKey<FormState> formKey;
   final String title;
   final EnvironmentsProvider environmentsProvider;
+  final Function(bool, List<dynamic>)? changeCallback;
 
   const EnvironmentForm({
     super.key,
     required this.formKey,
     required this.title,
     required this.environmentsProvider,
-    this.environment,
+    required this.environment,
+    required this.changeCallback,
   });
 
   @override
@@ -180,9 +199,14 @@ class _EnvironmentFormState extends State<EnvironmentForm> {
   late double _currentLightHours;
   late LightType _currentLightType;
 
+  late final Environment _initialEnvironment;
+
   @override
   void initState() {
     super.initState();
+    if (widget.environment != null) {
+      _initialEnvironment = widget.environment!;
+    }
     _nameController = TextEditingController(text: widget.environment?.name);
     _descriptionController = TextEditingController(text: widget.environment?.description);
     _wattController = TextEditingController(
@@ -259,6 +283,17 @@ class _EnvironmentFormState extends State<EnvironmentForm> {
                             }
                             return null;
                           },
+                          onChanged: (value) {
+                            if (widget.changeCallback != null) {
+                              if (widget.environment != null) {
+                                if (_nameController.text != _initialEnvironment.name) {
+                                  widget.changeCallback!(true, []);
+                                } else {
+                                  widget.changeCallback!(false, []);
+                                }
+                              }
+                            }
+                          },
                         ),
                         const SizedBox(height: 16.0),
                         TextFormField(
@@ -269,6 +304,18 @@ class _EnvironmentFormState extends State<EnvironmentForm> {
                             labelText: tr('common.description'),
                             hintText: tr('environments.description_hint'),
                           ),
+                          onChanged: (value) {
+                            if (widget.changeCallback != null) {
+                              if (widget.environment != null) {
+                                if (_descriptionController.text !=
+                                    _initialEnvironment.description) {
+                                  widget.changeCallback!(true, []);
+                                } else {
+                                  widget.changeCallback!(false, []);
+                                }
+                              }
+                            }
+                          },
                         ),
                       ],
                     ),
@@ -277,24 +324,27 @@ class _EnvironmentFormState extends State<EnvironmentForm> {
                 const SizedBox(height: 16.0),
                 Text(
                     '${tr('environments.choose_type')} ${_selectedEnvironmentType[0] ? tr('common.indoor') : tr('common.outdoor')}'),
-                const SizedBox(height: 16.0),
-                ToggleButtons(
-                    isSelected: _selectedEnvironmentType,
-                    onPressed: (int index) => _onToggleEnvironmentType(index),
-                    children: EnvironmentType.values
-                        .map(
-                          (environment) => Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Row(
-                              children: [
-                                Text(environment.icon),
-                                const SizedBox(width: 8.0),
-                                Text(environment.name),
-                              ],
-                            ),
-                          ),
-                        )
-                        .toList()),
+                if (widget.environment == null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16.0),
+                    child: ToggleButtons(
+                        isSelected: _selectedEnvironmentType,
+                        onPressed: (int index) => _onToggleEnvironmentType(index),
+                        children: EnvironmentType.values
+                            .map(
+                              (environment) => Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Row(
+                                  children: [
+                                    Text(environment.icon),
+                                    const SizedBox(width: 8.0),
+                                    Text(environment.name),
+                                  ],
+                                ),
+                              ),
+                            )
+                            .toList()),
+                  ),
                 const SizedBox(height: 16.0),
                 Card(
                   child: Padding(
@@ -330,12 +380,50 @@ class _EnvironmentFormState extends State<EnvironmentForm> {
                         Text(tr('common.banner_image')),
                         PictureForm(
                           key: _pictureFormKey,
+                          value: widget.environment,
                           allowMultiple: false,
                           images: widget.environment == null
                               ? []
                               : widget.environment!.bannerImagePath.isEmpty
                                   ? []
                                   : [File(widget.environment!.bannerImagePath)],
+                          changeCallback: (bool hasChanged, List<File> images) {
+                            if (widget.changeCallback != null) {
+                              if (images.isNotEmpty) {
+                                // Creation case - environment banner image was
+                                // taken but now user decided to leave the creation screen.
+                                if (widget.environment == null && images.isNotEmpty) {
+                                  widget.changeCallback!(true, [
+                                    images,
+                                  ]);
+                                  return;
+                                }
+
+                                // First case - environment was created without image, now editing with image.
+                                if (images.first.path != _initialEnvironment.bannerImagePath) {
+                                  widget.changeCallback!(true, [
+                                    images,
+                                  ]);
+                                } else {
+                                  widget.changeCallback!(false, []);
+                                }
+                              } else {
+                                if (widget.environment == null) {
+                                  widget.changeCallback!(false, []);
+                                  return;
+                                }
+
+                                // Second case - environment was created with image, now editing without image.
+                                if (_initialEnvironment.bannerImagePath.isNotEmpty) {
+                                  widget.changeCallback!(true, [
+                                    images,
+                                  ]);
+                                } else {
+                                  widget.changeCallback!(false, []);
+                                }
+                              }
+                            }
+                          },
                         ),
                       ],
                     ),
@@ -378,6 +466,17 @@ class _EnvironmentFormState extends State<EnvironmentForm> {
                                     suffixIcon: Icon(Icons.electrical_services),
                                   ),
                                   validator: (value) => validateInput(value, isDouble: true),
+                                  onChanged: (value) {
+                                    if (widget.changeCallback != null) {
+                                      if (_wattController.text !=
+                                          _initialEnvironment.lightDetails.lights.first.watt
+                                              .toString()) {
+                                        widget.changeCallback!(true, []);
+                                      } else {
+                                        widget.changeCallback!(false, []);
+                                      }
+                                    }
+                                  },
                                 ),
                               ),
                             ],
@@ -402,7 +501,17 @@ class _EnvironmentFormState extends State<EnvironmentForm> {
                                       labelText: tr('common.width'),
                                       hintText: tr('common.width_hint'),
                                     ),
-                                    validator: (value) => validateInput(value, isDouble: true)),
+                                    validator: (value) => validateInput(value, isDouble: true),
+                                    onChanged: (value) {
+                                      if (widget.changeCallback != null) {
+                                        if (_widthController.text !=
+                                            _initialEnvironment.dimension?.width.value.toString()) {
+                                          widget.changeCallback!(true, []);
+                                        } else {
+                                          widget.changeCallback!(false, []);
+                                        }
+                                      }
+                                    }),
                                 const SizedBox(height: 16.0),
                                 TextFormField(
                                     controller: _lengthController,
@@ -411,7 +520,18 @@ class _EnvironmentFormState extends State<EnvironmentForm> {
                                       labelText: tr('common.length'),
                                       hintText: tr('common.length_hint'),
                                     ),
-                                    validator: (value) => validateInput(value, isDouble: true)),
+                                    validator: (value) => validateInput(value, isDouble: true),
+                                    onChanged: (value) {
+                                      if (widget.changeCallback != null) {
+                                        if (_lengthController.text !=
+                                            _initialEnvironment.dimension?.length.value
+                                                .toString()) {
+                                          widget.changeCallback!(true, []);
+                                        } else {
+                                          widget.changeCallback!(false, []);
+                                        }
+                                      }
+                                    }),
                                 const SizedBox(height: 16.0),
                                 TextFormField(
                                     controller: _heightController,
@@ -420,7 +540,18 @@ class _EnvironmentFormState extends State<EnvironmentForm> {
                                       labelText: tr('common.height'),
                                       hintText: tr('common.height_hint'),
                                     ),
-                                    validator: (value) => validateInput(value, isDouble: true)),
+                                  validator: (value) => validateInput(value, isDouble: true),
+                                  onChanged: (value) {
+                                    if (widget.changeCallback != null) {
+                                      if (_heightController.text !=
+                                          _initialEnvironment.dimension?.height.value.toString()) {
+                                        widget.changeCallback!(true, []);
+                                      } else {
+                                        widget.changeCallback!(false, []);
+                                      }
+                                    }
+                                  },
+                                ),
                               ],
                             ),
                           ),
@@ -447,6 +578,15 @@ class _EnvironmentFormState extends State<EnvironmentForm> {
   void _updateCurrentLightHours(double value) {
     setState(() {
       _currentLightHours = value;
+      if (widget.changeCallback != null) {
+        if (widget.environment != null) {
+          if (_currentLightHours != _initialEnvironment.lightDetails.lightHours.toDouble()) {
+            widget.changeCallback!(true, []);
+          } else {
+            widget.changeCallback!(false, []);
+          }
+        }
+      }
     });
   }
 
@@ -454,6 +594,15 @@ class _EnvironmentFormState extends State<EnvironmentForm> {
   void _updateCurrentLightType(LightType value) {
     setState(() {
       _currentLightType = value;
+      if (widget.changeCallback != null) {
+        if (widget.environment != null) {
+          if (_currentLightType != _initialEnvironment.lightDetails.lights.first.type) {
+            widget.changeCallback!(true, []);
+          } else {
+            widget.changeCallback!(false, []);
+          }
+        }
+      }
     });
   }
 
@@ -491,15 +640,15 @@ class _EnvironmentFormState extends State<EnvironmentForm> {
               dimension: Dimension(
                   width: MeasurementAmount(
                     value: double.parse(_widthController.text),
-                    unit: MeasurementUnit.cm,
+                    measurementUnit: MeasurementUnit.cm,
                   ),
                   length: MeasurementAmount(
                     value: double.parse(_lengthController.text),
-                    unit: MeasurementUnit.cm,
+                    measurementUnit: MeasurementUnit.cm,
                   ),
                   height: MeasurementAmount(
                     value: double.parse(_heightController.text),
-                    unit: MeasurementUnit.cm,
+                    measurementUnit: MeasurementUnit.cm,
                   )),
               bannerImagePath: _pictureFormKey.currentState!.images.isEmpty
                   ? ''
@@ -546,15 +695,15 @@ class _EnvironmentFormState extends State<EnvironmentForm> {
             dimension: Dimension(
                 width: MeasurementAmount(
                   value: double.parse(_widthController.text),
-                  unit: MeasurementUnit.cm,
+                  measurementUnit: MeasurementUnit.cm,
                 ),
                 length: MeasurementAmount(
                   value: double.parse(_lengthController.text),
-                  unit: MeasurementUnit.cm,
+                  measurementUnit: MeasurementUnit.cm,
                 ),
                 height: MeasurementAmount(
                   value: double.parse(_heightController.text),
-                  unit: MeasurementUnit.cm,
+                  measurementUnit: MeasurementUnit.cm,
                 )),
             bannerImagePath: _pictureFormKey.currentState!.images.isEmpty
                 ? ''
@@ -584,41 +733,111 @@ class _EnvironmentFormState extends State<EnvironmentForm> {
 }
 
 /// A view that allows the user to create a new environment.
-class CreateEnvironmentView extends StatelessWidget {
+class CreateEnvironmentView extends StatefulWidget {
   final EnvironmentsProvider environmentsProvider;
 
-  CreateEnvironmentView({super.key, required this.environmentsProvider});
+  const CreateEnvironmentView({super.key, required this.environmentsProvider});
 
+  @override
+  State<CreateEnvironmentView> createState() => _CreateEnvironmentViewState();
+}
+
+class _CreateEnvironmentViewState extends State<CreateEnvironmentView> {
   final _formKey = GlobalKey<FormState>();
+
+  bool _hasChanged = false;
+
+  List<File> _images = [];
 
   @override
   Widget build(BuildContext context) {
-    return EnvironmentForm(
-      formKey: _formKey,
-      title: tr('environments.create'),
-      environment: null,
-      environmentsProvider: environmentsProvider,
+    return PopScope(
+      canPop: !_hasChanged,
+      onPopInvoked: (didPop) async {
+        if (didPop) {
+          return;
+        }
+        if (_hasChanged) {
+          final confirmed = await discardChangesDialog(context);
+          if (confirmed && context.mounted) {
+            // Delete all images that were added.
+            for (var image in _images) {
+              if (image.path.contains('app_flutter')) {
+                image.delete();
+              }
+            }
+            Navigator.of(context).pop();
+          }
+        }
+      },
+      child: EnvironmentForm(
+        formKey: _formKey,
+        title: tr('environments.create'),
+        environment: null,
+        environmentsProvider: widget.environmentsProvider,
+        changeCallback: (bool hasChanged, List<dynamic> objects) => setState(() {
+          _hasChanged = hasChanged;
+          if (objects.isNotEmpty) {
+            _images = objects[0] as List<File>;
+          }
+        }),
+      ),
     );
   }
 }
 
 /// A view that allows the user to edit an existing environment.
-class EditEnvironmentView extends StatelessWidget {
+class EditEnvironmentView extends StatefulWidget {
   final Environment environment;
   final EnvironmentsProvider environmentsProvider;
 
-  EditEnvironmentView({super.key, required this.environment, required this.environmentsProvider});
+  const EditEnvironmentView(
+      {super.key, required this.environment, required this.environmentsProvider});
 
+  @override
+  State<EditEnvironmentView> createState() => _EditEnvironmentViewState();
+}
+
+class _EditEnvironmentViewState extends State<EditEnvironmentView> {
   final _formKey = GlobalKey<FormState>();
+
+  bool _hasChanged = false;
+  List<File> _images = [];
 
   @override
   Widget build(BuildContext context) {
     final editTranslation = tr('environments.edit');
-    return EnvironmentForm(
-      formKey: _formKey,
-      title: '$editTranslation ${environment.name}',
-      environment: environment,
-      environmentsProvider: environmentsProvider,
+    return PopScope(
+      canPop: !_hasChanged,
+      onPopInvoked: (didPop) async {
+        if (didPop) {
+          return;
+        }
+        if (_hasChanged) {
+          final confirmed = await discardChangesDialog(context);
+          if (confirmed && context.mounted) {
+            // Delete all images that were added.
+            for (var image in _images) {
+              if (image.path.contains('app_flutter')) {
+                image.delete();
+              }
+            }
+            Navigator.of(context).pop();
+          }
+        }
+      },
+      child: EnvironmentForm(
+        formKey: _formKey,
+        title: '$editTranslation ${widget.environment.name}',
+        environment: widget.environment,
+        environmentsProvider: widget.environmentsProvider,
+        changeCallback: (bool hasChanged, List<dynamic> objects) => setState(() {
+          _hasChanged = hasChanged;
+          if (objects.isNotEmpty) {
+            _images = objects[0] as List<File>;
+          }
+        }),
+      ),
     );
   }
 }
